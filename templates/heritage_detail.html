@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ site.name }} - Digital Catalyst{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('heritage_list') }}">Heritage Sites</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ site.name }}</li>
+        </ol>
+    </nav>
+    <div class="row">
+        <div class="col-lg-5 col-md-6 mb-4">
+            <div class="detail-image-wrap">
+                <img src="{{ site.image_or_placeholder() }}" alt="{{ site.name }}" class="detail-image img-fluid rounded">
+            </div>
+        </div>
+        <div class="col-lg-7 col-md-6">
+            <h1 class="section-title mb-2">{{ site.name }}</h1>
+            <p class="mb-3">
+                <span class="badge badge-teal me-2">{{ site.category }}</span>
+                <span class="badge badge-orange">{{ site.state }}</span>
+            </p>
+            <div class="detail-meta mb-4">
+                <span class="detail-meta-item">
+                    <i class="bi bi-people-fill me-1"></i>{{ "{:,}".format(site.annual_visitors) }} annual visitors
+                </span>
+            </div>
+            <div class="card-custom mb-4">
+                <div class="card-header-custom">
+                    <i class="bi bi-info-circle me-2"></i>Description
+                </div>
+                <div class="card-body-custom">
+                    <p class="mb-0">{{ site.description or 'No description available.' }}</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('edit_heritage', id=site.id) }}" class="btn btn-custom-primary">
+                    <i class="bi bi-pencil me-2"></i>Edit
+                </a>
+                <a href="{{ url_for('heritage_list') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to list
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Digital Catalyst – Heritage & Economic Growth{% endblock %}
+
+{% block content %}
+<div class="landing-page">
+    <!-- Hero -->
+    <section class="landing-hero">
+        <div class="landing-hero-bg"></div>
+        <div class="container position-relative">
+            <div class="landing-hero-content">
+                <div class="landing-hero-badge">
+                    <i class="bi bi-hexagon-fill me-2"></i>AI-Driven Platform
+                </div>
+                <h1 class="landing-hero-title">Empower India's Heritage & Economy</h1>
+                <p class="landing-hero-subtitle">
+                    Manage heritage sites, support artisans, and grow with real-time analytics. 
+                    One platform for preservation and economic impact.
+                </p>
+                <div class="landing-hero-cta">
+                    <a href="{{ url_for('login') }}" class="btn btn-landing btn-landing-primary">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </a>
+                    <a href="{{ url_for('login') }}?tab=manufacturer" class="btn btn-landing btn-landing-secondary">
+                        <i class="bi bi-gear-wide-connected me-2"></i>Login as Manufacturer
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-landing btn-landing-outline">
+                        <i class="bi bi-person-plus me-2"></i>Register
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="landing-features py-5">
+        <div class="container py-4">
+            <h2 class="landing-section-title text-center mb-5">Why Digital Catalyst?</h2>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="landing-feature-card">
+                        <div class="landing-feature-icon"><i class="bi bi-building"></i></div>
+                        <h3>Heritage Sites</h3>
+                        <p>Track and manage heritage sites across India with analytics and AI recommendations.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="landing-feature-card">
+                        <div class="landing-feature-icon"><i class="bi bi-palette"></i></div>
+                        <h3>Artisans & MSME</h3>
+                        <p>Support traditional artisans, list crafts, and measure economic impact.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="landing-feature-card">
+                        <div class="landing-feature-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                        <h3>Analytics & Export</h3>
+                        <p>Dashboards, charts, and CSV export for reporting and growth.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA strip -->
+    <section class="landing-cta-strip py-4">
+        <div class="container text-center">
+            <p class="mb-3 mb-md-0 me-md-3">Ready to get started?</p>
+            <a href="{{ url_for('login') }}" class="btn btn-light btn-lg">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Full Login Page
+            </a>
+        </div>
+    </section>
+</div>
+{% endblock %}
