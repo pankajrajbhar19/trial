@@ -78,7 +78,11 @@ def login():
                 flash('Invalid username or password', 'danger')
         
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
             print(f"Login error: {str(e)}")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Traceback: {error_details}")
             flash('An error occurred during login. Please try again.', 'danger')
     
     return render_template('login.html')

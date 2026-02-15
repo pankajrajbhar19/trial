@@ -25,14 +25,44 @@ returning appropriate status codes and error messages in JSON format.
 """
 
 from flask import Blueprint, jsonify, request
-from models import db, HeritageSite, Artisan, Product, Order
+from models import db, HeritageSite, Artisan, Product, Order, User
 from ml.recommendation_engine import RecommendationEngine
+from sqlalchemy import text
 
 # Create Blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 # Initialize ML engine
 ml_engine = RecommendationEngine()
+
+
+@api_bp.route('/health', methods=['GET'])
+def health_check():
+    """
+    GET /api/health
+    
+    Health check endpoint to verify database connectivity and app status.
+    """
+    try:
+        # Test database connection
+        db.session.execute(text('SELECT 1'))
+        
+        # Check if users exist
+        user_count = User.query.count()
+        
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'users': user_count,
+            'message': 'Application is running correctly'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e),
+            'message': 'Database connection failed'
+        }), 500
 
 
 @api_bp.route('/heritage', methods=['GET'])
