@@ -69,7 +69,7 @@
                 <div class="card-body-custom">
                     {% if recommended_sites %}
                         {% for site in recommended_sites[:5] %}
-                        <a href="{{ url_for('heritage_detail', id=site.id) }}" class="recommendation-card recommendation-card-link text-decoration-none d-block">
+                        <a href="{{ url_for('main.heritage_detail', id=site.id) }}" class="recommendation-card recommendation-card-link text-decoration-none d-block">
                             <div class="row align-items-center g-2">
                                 <div class="col-auto">
                                     <img src="{{ site.image_or_placeholder() }}" alt="{{ site.name }}" class="rounded" width="64" height="64" style="object-fit: cover;">
@@ -157,22 +157,22 @@
                 <div class="card-body-custom">
                     <div class="row">
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('add_heritage') }}" class="btn btn-custom-primary w-100">
+                            <a href="{{ url_for('main.add_heritage') }}" class="btn btn-custom-primary w-100">
                                 <i class="bi bi-plus-circle me-2"></i>Add Heritage Site
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('add_artisan') }}" class="btn btn-custom-primary w-100">
+                            <a href="{{ url_for('main.add_artisan') }}" class="btn btn-custom-primary w-100">
                                 <i class="bi bi-plus-circle me-2"></i>Add Artisan
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('export_heritage') }}" class="btn btn-custom-secondary w-100">
+                            <a href="{{ url_for('main.export_heritage') }}" class="btn btn-custom-secondary w-100">
                                 <i class="bi bi-download me-2"></i>Export Heritage
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('export_artisans') }}" class="btn btn-custom-secondary w-100">
+                            <a href="{{ url_for('main.export_artisans') }}" class="btn btn-custom-secondary w-100">
                                 <i class="bi bi-download me-2"></i>Export Artisans
                             </a>
                         </div>

@@ -18,13 +18,13 @@
                     One platform for preservation and economic impact.
                 </p>
                 <div class="landing-hero-cta">
-                    <a href="{{ url_for('login') }}" class="btn btn-landing btn-landing-primary">
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-landing btn-landing-primary">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </a>
-                    <a href="{{ url_for('login') }}?tab=manufacturer" class="btn btn-landing btn-landing-secondary">
+                    <a href="{{ url_for('auth.login') }}?tab=manufacturer" class="btn btn-landing btn-landing-secondary">
                         <i class="bi bi-gear-wide-connected me-2"></i>Login as Manufacturer
                     </a>
-                    <a href="{{ url_for('register') }}" class="btn btn-landing btn-landing-outline">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-landing btn-landing-outline">
                         <i class="bi bi-person-plus me-2"></i>Register
                     </a>
                 </div>
@@ -66,7 +66,7 @@
     <section class="landing-cta-strip py-4">
         <div class="container text-center">
             <p class="mb-3 mb-md-0 me-md-3">Ready to get started?</p>
-            <a href="{{ url_for('login') }}" class="btn btn-light btn-lg">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-light btn-lg">
                 <i class="bi bi-box-arrow-in-right me-2"></i>Full Login Page
             </a>
         </div>

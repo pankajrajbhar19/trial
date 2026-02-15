@@ -17,16 +17,16 @@
     --border-color: #E8E2D5;
     --success-green: #2D6A4F;
     --danger-red: #C1121F;
-    
+
     /* Typography */
     --font-display: 'Playfair Display', serif;
     --font-body: 'Work Sans', sans-serif;
-    
+
     /* Shadows */
     --shadow-sm: 0 2px 8px rgba(10, 35, 66, 0.08);
     --shadow-md: 0 4px 16px rgba(10, 35, 66, 0.12);
     --shadow-lg: 0 8px 32px rgba(10, 35, 66, 0.16);
-    
+
     /* Spacing */
     --border-radius: 12px;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -42,6 +42,10 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: var(--font-body);
     background: linear-gradient(135deg, #FAF7F2 0%, #F5EFE6 100%);
@@ -50,7 +54,12 @@ body {
     line-height: 1.6;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: var(--font-display);
     font-weight: 700;
     letter-spacing: -0.02em;
@@ -92,8 +101,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .brand-logo:hover .brand-icon {
@@ -449,6 +463,7 @@ h1, h2, h3, h4, h5, h6 {
         opacity: 0;
         transform: translateY(30px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -771,6 +786,7 @@ h1, h2, h3, h4, h5, h6 {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -845,12 +861,12 @@ h1, h2, h3, h4, h5, h6 {
     .stat-value {
         font-size: 2rem;
     }
-    
+
     .auth-card {
         margin: 1rem;
         padding: 2rem;
     }
-    
+
     .chart-container {
         height: 250px;
     }
@@ -1086,6 +1102,7 @@ h1, h2, h3, h4, h5, h6 {
     .chatbot-toggle-label {
         display: none;
     }
+
     .chatbot-toggle {
         width: 56px;
         padding: 0;

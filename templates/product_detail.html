@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - Digital Catalyst{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            {% if product.image_url %}
+            <img src="{{ product.image_url }}" class="img-fluid rounded shadow" alt="{{ product.name }}">
+            {% else %}
+            <div class="bg-secondary d-flex align-items-center justify-content-center rounded shadow" style="height: 400px;">
+                <i class="fas fa-image fa-5x text-white"></i>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-md-6">
+            <h2>{{ product.name }}</h2>
+            <p class="text-muted">By <a href="{{ url_for('main.artisan_products', artisan_id=product.artisan.id) }}">{{ product.artisan.name }}</a></p>
+            <hr>
+            <h3 class="text-success">₹{{ product.price }}</h3>
+            <p><strong>Stock:</strong> 
+                {% if product.stock > 0 %}
+                <span class="badge bg-success">{{ product.stock }} available</span>
+                {% else %}
+                <span class="badge bg-danger">Out of Stock</span>
+                {% endif %}
+            </p>
+            <hr>
+            <h5>Description</h5>
+            <p>{{ product.description or 'No description available.' }}</p>
+            <hr>
+            <h5>Artisan Details</h5>
+            <p><strong>Craft:</strong> {{ product.artisan.craft }}</p>
+            <p><strong>Location:</strong> {{ product.artisan.state }}</p>
+            <p><strong>Contact:</strong> {{ product.artisan.contact or 'N/A' }}</p>
+            <hr>
+            {% if product.stock > 0 %}
+            <a href="{{ url_for('main.checkout', id=product.id) }}" class="btn btn-primary btn-lg w-100">
+                <i class="fas fa-shopping-cart"></i> Buy Now
+            </a>
+            {% else %}
+            <button class="btn btn-secondary btn-lg w-100" disabled>
+                <i class="fas fa-ban"></i> Out of Stock
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

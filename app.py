@@ -1,600 +1,233 @@
 """
 Digital Catalyst: AI-Driven Platform for Indian Economic Growth & Heritage Preservation
-Main Flask Application with REST APIs and Dashboard
+========================================================================================
+
+Main Flask Application with Blueprint-based Modular Architecture
+
+Academic Note:
+This application demonstrates professional Flask architecture using Blueprints for
+modular organization. The application is structured into four main components:
+
+1. Authentication (blueprints/auth.py): User login, registration, logout
+2. Main Application (blueprints/main.py): Core CRUD operations for heritage sites, artisans, products
+3. REST API (blueprints/api.py): JSON endpoints for programmatic access
+4. Analytics Dashboard (blueprints/dashboard.py): Admin analytics and reporting
+
+Architecture Benefits:
+- Separation of Concerns: Each blueprint handles specific functionality
+- Maintainability: Easier to locate and modify code
+- Scalability: New features can be added as new blueprints
+- Testability: Each blueprint can be tested independently
+- Reusability: Blueprints can be reused across projects
+
+Database Design:
+- SQLite for development (easy setup, no server required)
+- SQLAlchemy ORM for database abstraction
+- Proper relationships with foreign keys and cascade rules
+- Indexes on frequently queried columns
+
+Security Features:
+- Password hashing using werkzeug.security
+- Session-based authentication using Flask-Login
+- CSRF protection (to be added)
+- Input validation and sanitization
+- Role-based access control
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, HeritageSite, Artisan
-from ml.recommendation_engine import RecommendationEngine
-import os
-import csv
-from io import StringIO
-from datetime import datetime
-from functools import lru_cache
+from flask import Flask
+from flask_login import LoginManager
+from models import db, User
+from werkzeug.security import generate_password_hash
+from sqlalchemy import text
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# ============================================================================
+# APPLICATION CONFIGURATION
+# ============================================================================
+
+# Academic Note: Configuration should be externalized in production
+# Use environment variables or config files for sensitive data
 app.config['SECRET_KEY'] = 'digital-catalyst-secret-key-2026'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Database connection pooling for better performance
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 10,
-    'pool_recycle': 3600,
-    'pool_pre_ping': True
+    'pool_size': 10,           # Maximum number of connections
+    'pool_recycle': 3600,      # Recycle connections after 1 hour
+    'pool_pre_ping': True      # Verify connections before use
 }
 
-# Initialize extensions
+# Disable template auto-reload for better performance
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['TEMPLATES_AUTO_RELOAD'] = False
+
+# ============================================================================
+# SECURITY CONFIGURATION
+# ============================================================================
+
+# Academic Note - Session Security:
+# ---------------------------------
+# These settings protect against common session-based attacks:
+#
+# SESSION_COOKIE_SECURE:
+# - Ensures cookies only sent over HTTPS
+# - Prevents man-in-the-middle attacks
+# - Set to False for development (HTTP), True for production (HTTPS)
+#
+# SESSION_COOKIE_HTTPONLY:
+# - Prevents JavaScript access to session cookies
+# - Mitigates XSS (Cross-Site Scripting) attacks
+# - Even if attacker injects JS, they can't steal session
+#
+# SESSION_COOKIE_SAMESITE:
+# - Prevents CSRF (Cross-Site Request Forgery) attacks
+# - 'Lax': Cookies sent with top-level navigation (GET requests)
+# - 'Strict': Cookies never sent from external sites (more secure but less usable)
+# - 'None': No protection (requires SECURE flag)
+#
+# PERMANENT_SESSION_LIFETIME:
+# - Auto-logout after inactivity period
+# - Reduces risk of session hijacking
+# - Balance security vs user convenience
+
+from datetime import timedelta
+
+# Session cookie security settings
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # 24-hour session timeout
+
+# File upload security settings
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max file size
+
+# ============================================================================
+# INITIALIZE EXTENSIONS
+# ============================================================================
+
+# Initialize database
 db.init_app(app)
+
+# Initialize Flask-Login for session management
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'landing'
-
-# Initialize ML engine
-ml_engine = RecommendationEngine()
+login_manager.login_view = 'auth.login'  # Redirect to login if not authenticated
 
 @login_manager.user_loader
 def load_user(user_id):
+    """
+    User Loader Callback
+    
+    Flask-Login uses this to reload user object from user ID stored in session.
+    
+    Academic Note:
+    This callback is called on every request to load the current user.
+    It should be efficient (use caching in production).
+    """
     return User.query.get(int(user_id))
 
+# ============================================================================
+# REGISTER BLUEPRINTS
+# ============================================================================
+
+# Academic Note: Blueprints are registered with URL prefixes
+# This creates a clear URL structure:
+# - /auth/login, /auth/register, /auth/logout
+# - /heritage, /artisans, /products (no prefix for main routes)
+# - /api/heritage, /api/artisans, /api/recommendations
+# - /dashboard/analytics
+
+from blueprints.auth import auth_bp
+from blueprints.main import main_bp
+from blueprints.api import api_bp
+from blueprints.dashboard import dashboard_bp
+
+app.register_blueprint(auth_bp)      # URL prefix: /auth
+app.register_blueprint(main_bp)      # URL prefix: / (none)
+app.register_blueprint(api_bp)       # URL prefix: /api
+app.register_blueprint(dashboard_bp) # URL prefix: /dashboard
+
+# ============================================================================
+# DATABASE SCHEMA MIGRATION
+# ============================================================================
 
 def _ensure_schema_columns():
-    """Add missing columns for existing DBs (role, image_url). Run once per process."""
-    from sqlalchemy import text
+    """
+    Add missing columns for existing databases.
+    
+    Academic Note:
+    This function handles schema evolution without losing data.
+    In production, use proper migration tools like Alembic.
+    
+    Migrations Applied:
+    - Add 'role' column to users table (for role-based access control)
+    - Add 'image_url' column to heritage_sites table
+    - Add 'image_url' column to artisans table
+    """
     migrations = [
         ("users", "role", "VARCHAR(20) DEFAULT 'user'"),
         ("heritage_sites", "image_url", "VARCHAR(500)"),
         ("artisans", "image_url", "VARCHAR(500)"),
     ]
+    
     for table, column, col_type in migrations:
         try:
             db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            # Ignore "duplicate column" errors (column already exists)
             if "duplicate column name" not in str(e).lower():
                 raise
 
-
+# Global flag to ensure migration runs only once per process
 _role_migration_done = False
-
 
 @app.before_request
 def run_schema_migration_once():
+    """
+    Run schema migration before first request.
+    
+    Academic Note:
+    This ensures database schema is up-to-date before handling requests.
+    The global flag prevents running migration on every request.
+    """
     global _role_migration_done
     if _role_migration_done:
         return
     try:
         _ensure_schema_columns()
     except Exception:
-        pass
+        pass  # Ignore errors (columns may already exist)
     _role_migration_done = True
 
-
 # ============================================================================
-# AUTHENTICATION ROUTES
-# ============================================================================
-
-@app.route('/')
-def landing():
-    """Landing page – show when not logged in, else redirect to dashboard"""
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
-    return render_template('landing.html')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Full login page: Sign in + Login as Manufacturer"""
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        login_type = request.form.get('login_type', 'user')  # 'user' or 'manufacturer'
-        
-        user = User.query.filter_by(username=username).first()
-        
-        if user and check_password_hash(user.password, password):
-            if login_type == 'manufacturer' and not user.is_manufacturer:
-                flash('This account is not registered as a manufacturer. Sign in as a regular user or register as manufacturer.', 'warning')
-                return redirect(url_for('login'))
-            login_user(user)
-            session['login_as_manufacturer'] = (login_type == 'manufacturer')
-            flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password', 'danger')
-    
-    return render_template('login.html')
-
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    """User registration route"""
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        # Check if user exists
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists', 'danger')
-            return redirect(url_for('register'))
-        
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered', 'danger')
-            return redirect(url_for('register'))
-        
-        # Create new user
-        hashed_password = generate_password_hash(password)
-        role = request.form.get('role', 'user')
-        new_user = User(username=username, email=email, password=hashed_password, role=role)
-        
-        db.session.add(new_user)
-        db.session.commit()
-        
-        flash('Registration successful! Please login.', 'success')
-        return redirect(url_for('login'))
-    
-    return render_template('register.html')
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    """User logout route"""
-    logout_user()
-    session.pop('login_as_manufacturer', None)
-    flash('Logged out successfully', 'info')
-    return redirect(url_for('landing'))
-
-
-# ============================================================================
-# DASHBOARD ROUTES
-# ============================================================================
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    """Main dashboard with analytics"""
-    # Get all data with optimized queries
-    heritage_sites = HeritageSite.query.with_entities(
-        HeritageSite.id, HeritageSite.name, HeritageSite.state, 
-        HeritageSite.category, HeritageSite.annual_visitors
-    ).all()
-    
-    artisans = Artisan.query.with_entities(
-        Artisan.id, Artisan.name, Artisan.craft, 
-        Artisan.state, Artisan.product_price
-    ).all()
-    
-    # Convert to dict for ML engine
-    sites_data = [{'id': s.id, 'name': s.name, 'state': s.state, 
-                   'category': s.category, 'annual_visitors': s.annual_visitors} 
-                  for s in heritage_sites]
-    artisans_data = [{'id': a.id, 'name': a.name, 'craft': a.craft, 
-                      'state': a.state, 'product_price': a.product_price} 
-                     for a in artisans]
-    
-    # Get recommendations (list of dicts with id)
-    recommended_sites_data = ml_engine.recommend_heritage_sites(sites_data, top_n=5)
-    recommended_site_ids = [s['id'] for s in recommended_sites_data if s.get('id')]
-    recommended_sites = HeritageSite.query.filter(HeritageSite.id.in_(recommended_site_ids)).all() if recommended_site_ids else []
-    # Keep order by visitor count (same as ML order)
-    recommended_sites.sort(key=lambda s: s.annual_visitors or 0, reverse=True)
-    
-    state_distribution = ml_engine.get_state_wise_distribution(artisans_data)
-    visitor_trends = ml_engine.get_visitor_trends(sites_data)
-    economic_impact = ml_engine.calculate_economic_impact(sites_data, artisans_data)
-    
-    # Calculate statistics
-    stats = {
-        'total_heritage_sites': len(heritage_sites),
-        'total_artisans': len(artisans),
-        'total_states': len(set([s.state for s in heritage_sites] + [a.state for a in artisans])),
-        'total_visitors': sum([s.annual_visitors for s in heritage_sites])
-    }
-    
-    # Get full objects for display
-    full_sites = HeritageSite.query.limit(10).all()
-    full_artisans = Artisan.query.limit(10).all()
-    
-    return render_template('dashboard.html',
-                         stats=stats,
-                         heritage_sites=full_sites,
-                         artisans=full_artisans,
-                         recommended_sites=recommended_sites,
-                         state_distribution=state_distribution,
-                         visitor_trends=visitor_trends,
-                         economic_impact=economic_impact)
-
-
-# ============================================================================
-# HERITAGE SITE ROUTES
-# ============================================================================
-
-@app.route('/heritage')
-@login_required
-def heritage_list():
-    """List all heritage sites"""
-    search = request.args.get('search', '')
-    state_filter = request.args.get('state', '')
-    category_filter = request.args.get('category', '')
-    
-    query = HeritageSite.query
-    
-    if search:
-        query = query.filter(HeritageSite.name.ilike(f'%{search}%'))
-    if state_filter:
-        query = query.filter(HeritageSite.state == state_filter)
-    if category_filter:
-        query = query.filter(HeritageSite.category == category_filter)
-    
-    sites = query.limit(100).all()
-    
-    # Get unique states and categories for filters
-    all_states = db.session.query(HeritageSite.state).distinct().limit(50).all()
-    all_categories = db.session.query(HeritageSite.category).distinct().limit(50).all()
-    
-    return render_template('heritage.html',
-                         sites=sites,
-                         states=[s[0] for s in all_states],
-                         categories=[c[0] for c in all_categories])
-
-
-@app.route('/heritage/add', methods=['GET', 'POST'])
-@login_required
-def add_heritage():
-    """Add new heritage site"""
-    if request.method == 'POST':
-        name = request.form.get('name')
-        state = request.form.get('state')
-        category = request.form.get('category')
-        description = request.form.get('description')
-        annual_visitors = int(request.form.get('annual_visitors', 0))
-        
-        image_url = request.form.get('image_url') or None
-        new_site = HeritageSite(
-            name=name,
-            state=state,
-            category=category,
-            description=description,
-            image_url=image_url,
-            annual_visitors=annual_visitors
-        )
-        
-        db.session.add(new_site)
-        db.session.commit()
-        
-        flash('Heritage site added successfully!', 'success')
-        return redirect(url_for('heritage_list'))
-    
-    return render_template('add_heritage.html')
-
-
-@app.route('/heritage/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def edit_heritage(id):
-    """Edit heritage site"""
-    site = HeritageSite.query.get_or_404(id)
-    
-    if request.method == 'POST':
-        site.name = request.form.get('name')
-        site.state = request.form.get('state')
-        site.category = request.form.get('category')
-        site.description = request.form.get('description')
-        site.image_url = request.form.get('image_url') or None
-        site.annual_visitors = int(request.form.get('annual_visitors', 0))
-        
-        db.session.commit()
-        
-        flash('Heritage site updated successfully!', 'success')
-        return redirect(url_for('heritage_list'))
-    
-    return render_template('edit_heritage.html', site=site)
-
-
-@app.route('/heritage/delete/<int:id>', methods=['POST'])
-@login_required
-def delete_heritage(id):
-    """Delete heritage site"""
-    site = HeritageSite.query.get_or_404(id)
-    db.session.delete(site)
-    db.session.commit()
-    
-    flash('Heritage site deleted successfully!', 'info')
-    return redirect(url_for('heritage_list'))
-
-
-@app.route('/heritage/<int:id>')
-@login_required
-def heritage_detail(id):
-    """Heritage site detail page with image and full description"""
-    site = HeritageSite.query.get_or_404(id)
-    return render_template('heritage_detail.html', site=site)
-
-
-# ============================================================================
-# ARTISAN ROUTES
-# ============================================================================
-
-@app.route('/artisans')
-@login_required
-def artisan_list():
-    """List all artisans"""
-    search = request.args.get('search', '')
-    state_filter = request.args.get('state', '')
-    craft_filter = request.args.get('craft', '')
-    
-    query = Artisan.query
-    
-    if search:
-        query = query.filter(Artisan.name.ilike(f'%{search}%'))
-    if state_filter:
-        query = query.filter(Artisan.state == state_filter)
-    if craft_filter:
-        query = query.filter(Artisan.craft == craft_filter)
-    
-    artisans = query.limit(100).all()
-    
-    # Get unique states and crafts for filters
-    all_states = db.session.query(Artisan.state).distinct().limit(50).all()
-    all_crafts = db.session.query(Artisan.craft).distinct().limit(50).all()
-    
-    return render_template('artisans.html',
-                         artisans=artisans,
-                         states=[s[0] for s in all_states],
-                         crafts=[c[0] for c in all_crafts])
-
-
-@app.route('/artisans/add', methods=['GET', 'POST'])
-@login_required
-def add_artisan():
-    """Add new artisan"""
-    if request.method == 'POST':
-        name = request.form.get('name')
-        craft = request.form.get('craft')
-        state = request.form.get('state')
-        product_price = float(request.form.get('product_price', 0))
-        contact = request.form.get('contact')
-        description = request.form.get('description')
-        
-        image_url = request.form.get('image_url') or None
-        new_artisan = Artisan(
-            name=name,
-            craft=craft,
-            state=state,
-            product_price=product_price,
-            contact=contact,
-            description=description,
-            image_url=image_url
-        )
-        
-        db.session.add(new_artisan)
-        db.session.commit()
-        
-        flash('Artisan added successfully!', 'success')
-        return redirect(url_for('artisan_list'))
-    
-    return render_template('add_artisan.html')
-
-
-@app.route('/artisans/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def edit_artisan(id):
-    """Edit artisan"""
-    artisan = Artisan.query.get_or_404(id)
-    
-    if request.method == 'POST':
-        artisan.name = request.form.get('name')
-        artisan.craft = request.form.get('craft')
-        artisan.state = request.form.get('state')
-        artisan.product_price = float(request.form.get('product_price', 0))
-        artisan.contact = request.form.get('contact')
-        artisan.description = request.form.get('description')
-        artisan.image_url = request.form.get('image_url') or None
-        
-        db.session.commit()
-        
-        flash('Artisan updated successfully!', 'success')
-        return redirect(url_for('artisan_list'))
-    
-    return render_template('edit_artisan.html', artisan=artisan)
-
-
-@app.route('/artisans/delete/<int:id>', methods=['POST'])
-@login_required
-def delete_artisan(id):
-    """Delete artisan"""
-    artisan = Artisan.query.get_or_404(id)
-    db.session.delete(artisan)
-    db.session.commit()
-    
-    flash('Artisan deleted successfully!', 'info')
-    return redirect(url_for('artisan_list'))
-
-
-@app.route('/artisans/<int:id>')
-@login_required
-def artisan_detail(id):
-    """Artisan detail page with image and full description"""
-    artisan = Artisan.query.get_or_404(id)
-    return render_template('artisan_detail.html', artisan=artisan)
-
-
-# ============================================================================
-# REST API ENDPOINTS
-# ============================================================================
-
-@app.route('/api/heritage', methods=['GET'])
-def api_heritage():
-    """API endpoint for heritage sites"""
-    sites = HeritageSite.query.all()
-    return jsonify([site.to_dict() for site in sites])
-
-
-@app.route('/api/artisans', methods=['GET'])
-def api_artisans():
-    """API endpoint for artisans"""
-    artisans = Artisan.query.all()
-    return jsonify([artisan.to_dict() for artisan in artisans])
-
-
-@app.route('/api/recommendations', methods=['GET'])
-def api_recommendations():
-    """API endpoint for AI recommendations"""
-    recommendation_type = request.args.get('type', 'heritage')
-    state = request.args.get('state', None)
-    top_n = int(request.args.get('top_n', 5))
-    
-    if recommendation_type == 'heritage':
-        sites = HeritageSite.query.all()
-        sites_data = [site.to_dict() for site in sites]
-        recommendations = ml_engine.recommend_heritage_sites(sites_data, top_n)
-        return jsonify(recommendations)
-    
-    elif recommendation_type == 'artisans':
-        artisans = Artisan.query.all()
-        artisans_data = [artisan.to_dict() for artisan in artisans]
-        recommendations = ml_engine.recommend_artisans_by_state(artisans_data, state, top_n)
-        return jsonify(recommendations)
-    
-    else:
-        return jsonify({'error': 'Invalid recommendation type'}), 400
-
-
-@app.route('/api/analytics', methods=['GET'])
-def api_analytics():
-    """API endpoint for analytics data"""
-    heritage_sites = HeritageSite.query.all()
-    artisans = Artisan.query.all()
-    
-    sites_data = [site.to_dict() for site in heritage_sites]
-    artisans_data = [artisan.to_dict() for artisan in artisans]
-    
-    economic_impact = ml_engine.calculate_economic_impact(sites_data, artisans_data)
-    visitor_trends = ml_engine.get_visitor_trends(sites_data)
-    state_distribution = ml_engine.get_state_wise_distribution(artisans_data)
-    
-    return jsonify({
-        'economic_impact': economic_impact,
-        'visitor_trends': visitor_trends,
-        'state_distribution': state_distribution
-    })
-
-
-@app.route('/api/chat', methods=['POST'])
-def api_chat():
-    """Chatbot API for customer support"""
-    data = request.get_json() or {}
-    message = data.get('message', '').strip()
-    if not message:
-        return jsonify({'success': False, 'response': 'Please enter a message.'}), 400
-
-    from chatbot import get_chat_response
-    response = get_chat_response(
-        message=message,
-        get_heritage_sites=lambda: HeritageSite.query.all(),
-        get_artisans=lambda: Artisan.query.all(),
-        is_authenticated=current_user.is_authenticated
-    )
-    # Convert **bold** to HTML for display
-    import re
-    response_html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', response)
-    response_html = response_html.replace('\n', '<br>')
-    return jsonify({'success': True, 'response': response_html})
-
-
-# ============================================================================
-# EXPORT ROUTES
-# ============================================================================
-
-@app.route('/export/heritage')
-@login_required
-def export_heritage():
-    """Export heritage sites to CSV"""
-    sites = HeritageSite.query.all()
-    
-    # Create CSV
-    output = StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow(['ID', 'Name', 'State', 'Category', 'Description', 'Annual Visitors', 'Created At'])
-    
-    # Write data
-    for site in sites:
-        writer.writerow([
-            site.id,
-            site.name,
-            site.state,
-            site.category,
-            site.description,
-            site.annual_visitors,
-            site.created_at.strftime('%Y-%m-%d %H:%M:%S') if site.created_at else ''
-        ])
-    
-    output.seek(0)
-    
-    from flask import Response
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=heritage_sites.csv'}
-    )
-
-
-@app.route('/export/artisans')
-@login_required
-def export_artisans():
-    """Export artisans to CSV"""
-    artisans = Artisan.query.all()
-    
-    # Create CSV
-    output = StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow(['ID', 'Name', 'Craft', 'State', 'Product Price', 'Contact', 'Description', 'Created At'])
-    
-    # Write data
-    for artisan in artisans:
-        writer.writerow([
-            artisan.id,
-            artisan.name,
-            artisan.craft,
-            artisan.state,
-            artisan.product_price,
-            artisan.contact,
-            artisan.description,
-            artisan.created_at.strftime('%Y-%m-%d %H:%M:%S') if artisan.created_at else ''
-        ])
-    
-    output.seek(0)
-    
-    from flask import Response
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=artisans.csv'}
-    )
-
-
-# ============================================================================
-# INITIALIZATION & SAMPLE DATA
+# DATABASE INITIALIZATION
 # ============================================================================
 
 def init_database():
-    """Initialize database with tables and sample data"""
+    """
+    Initialize database with tables and sample data.
+    
+    Academic Note:
+    This function demonstrates database initialization with:
+    1. Table creation using SQLAlchemy models
+    2. Schema migration for existing databases
+    3. Sample data insertion for development/testing
+    
+    In production:
+    - Use proper migration tools (Alembic)
+    - Don't insert sample data
+    - Use database backups
+    """
     with app.app_context():
-        # Create tables and add any missing columns (role, image_url)
+        # Create all tables defined in models.py
         db.create_all()
+        
+        # Apply schema migrations
         try:
             _ensure_schema_columns()
         except Exception:
@@ -602,22 +235,27 @@ def init_database():
         
         # Check if data already exists
         if User.query.first() is None:
-            # Create default user (regular)
-            default_user = User(
-                username='admin',
-                email='admin@digitalcatalyst.in',
-                password=generate_password_hash('admin123'),
-                role='user'
-            )
-            db.session.add(default_user)
-            # Create manufacturer demo user
-            manufacturer_user = User(
-                username='manufacturer',
-                email='manufacturer@digitalcatalyst.in',
-                password=generate_password_hash('manufacturer123'),
-                role='manufacturer'
-            )
-            db.session.add(manufacturer_user)
+            # Import models here to avoid circular imports
+            from models import HeritageSite, Artisan
+            
+            # Create default users with different roles
+            users = [
+                User(
+                    username='admin',
+                    email='admin@digitalcatalyst.in',
+                    password=generate_password_hash('admin123'),
+                    role='user'
+                ),
+                User(
+                    username='manufacturer',
+                    email='manufacturer@digitalcatalyst.in',
+                    password=generate_password_hash('manufacturer123'),
+                    role='manufacturer'
+                )
+            ]
+            
+            for user in users:
+                db.session.add(user)
             
             # Sample Heritage Sites
             heritage_sites = [
@@ -638,6 +276,9 @@ def init_database():
                 HeritageSite(name='Mysore Palace', state='Karnataka', category='Palace', 
                            description='Historical palace in Mysore', annual_visitors=2800000),
             ]
+            
+            for site in heritage_sites:
+                db.session.add(site)
             
             # Sample Artisans
             artisans = [
@@ -667,17 +308,90 @@ def init_database():
                        description='Bamboo basket weaver'),
             ]
             
-            # Add sample data
-            for site in heritage_sites:
-                db.session.add(site)
-            
             for artisan in artisans:
                 db.session.add(artisan)
             
+            # Commit all changes
             db.session.commit()
-            print("Database initialized with sample data!")
+            print("✓ Database initialized with sample data!")
+            print("✓ Default users created:")
+            print("  - Username: admin, Password: admin123 (role: user)")
+            print("  - Username: manufacturer, Password: manufacturer123 (role: manufacturer)")
 
+# ============================================================================
+# APPLICATION ENTRY POINT
+# ============================================================================
 
 if __name__ == "__main__":
+    # Initialize database on startup
     init_database()
-    app.run(debug=True, host='0.0.0.0', port=5004)
+    
+    # Run Flask development server
+    # Academic Note: This is for development only
+    # In production, use a WSGI server like Gunicorn or uWSGI
+    app.run(
+        debug=False,              # Disable debug mode for better performance
+        host='127.0.0.1',        # Listen on localhost only
+        port=5002,               # Port number
+        threaded=True,           # Enable threading for concurrent requests
+        use_reloader=False       # Disable auto-reloader for faster startup
+    )
+
+# ============================================================================
+# ACADEMIC NOTES ON FLASK APPLICATION STRUCTURE
+# ============================================================================
+
+"""
+Flask Application Lifecycle:
+1. Application Initialization: Create Flask app instance
+2. Configuration: Set app.config values
+3. Extension Initialization: Initialize Flask extensions (SQLAlchemy, Flask-Login)
+4. Blueprint Registration: Register modular components
+5. Request Handling: Process incoming HTTP requests
+6. Response Generation: Return HTTP responses
+
+Request-Response Cycle:
+1. Client sends HTTP request
+2. Flask routes request to appropriate blueprint/route
+3. Route function executes business logic
+4. Database queries performed if needed
+5. Template rendered with data
+6. HTTP response sent to client
+
+Database ORM (Object-Relational Mapping):
+- SQLAlchemy provides Python classes for database tables
+- Automatic SQL generation from Python code
+- Type safety and validation
+- Relationship management
+- Query optimization
+
+Security Considerations:
+- Password hashing (never store plaintext)
+- Session management (secure cookies)
+- CSRF protection (prevent cross-site attacks)
+- Input validation (prevent injection attacks)
+- Role-based access control (authorization)
+
+Performance Optimization:
+- Database connection pooling
+- Query optimization (select only needed columns)
+- Caching (Redis for production)
+- Lazy loading (load data only when needed)
+- Pagination (limit query results)
+
+Scalability Considerations:
+- Horizontal scaling (multiple app instances)
+- Load balancing (distribute requests)
+- Database replication (read replicas)
+- Caching layer (Redis, Memcached)
+- CDN for static files
+
+Production Deployment:
+- Use PostgreSQL instead of SQLite
+- Use Gunicorn/uWSGI as WSGI server
+- Use Nginx as reverse proxy
+- Enable HTTPS with SSL certificates
+- Set up monitoring and logging
+- Implement backup strategy
+- Use environment variables for configuration
+"""
