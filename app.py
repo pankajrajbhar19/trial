@@ -49,8 +49,13 @@ app = Flask(__name__)
 
 # Academic Note: Configuration should be externalized in production
 # Use environment variables or config files for sensitive data
-app.config['SECRET_KEY'] = 'digital-catalyst-secret-key-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+import os
+
+# Get the base directory
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'digital-catalyst-secret-key-2026')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.join(basedir, "instance", "database.db")}')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Database connection pooling for better performance
@@ -329,10 +334,11 @@ if __name__ == "__main__":
     # Run Flask development server
     # Academic Note: This is for development only
     # In production, use a WSGI server like Gunicorn or uWSGI
+    port = int(os.environ.get('PORT', 5002))
     app.run(
         debug=False,              # Disable debug mode for better performance
-        host='127.0.0.1',        # Listen on localhost only
-        port=5002,               # Port number
+        host='0.0.0.0',          # Listen on all interfaces for production
+        port=port,               # Port from environment or default 5002
         threaded=True,           # Enable threading for concurrent requests
         use_reloader=False       # Disable auto-reloader for faster startup
     )
