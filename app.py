@@ -168,6 +168,11 @@ app.register_blueprint(dashboard_bp) # URL prefix: /dashboard
 # Initialize database when app starts (works with Gunicorn)
 with app.app_context():
     try:
+        # Test database connection first
+        db.session.execute(text('SELECT 1'))
+        print("✓ Database connection successful")
+        
+        # Create all tables
         db.create_all()
         print("✓ Database tables created/verified")
         
@@ -253,8 +258,11 @@ with app.app_context():
         else:
             print("✓ Database already initialized")
     except Exception as e:
-        print(f"Database initialization error: {str(e)}")
-        # Don't fail app startup, just log the error
+        import traceback
+        print(f"❌ Database initialization error: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Traceback: {traceback.format_exc()}")
+        # Don't fail app startup, but provide detailed error info
 
 # ============================================================================
 # DATABASE SCHEMA MIGRATION
