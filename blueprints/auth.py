@@ -50,27 +50,36 @@ def login():
         return redirect(url_for('main.dashboard'))
     
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        login_type = request.form.get('login_type', 'user')  # 'user' or 'manufacturer'
-        
-        # Query user from database
-        user = User.query.filter_by(username=username).first()
-        
-        # Verify credentials
-        if user and check_password_hash(user.password, password):
-            # Verify role matches login type
-            if login_type == 'manufacturer' and not user.is_manufacturer:
-                flash('This account is not registered as a manufacturer. Sign in as a regular user or register as manufacturer.', 'warning')
+        try:
+            username = request.form.get('username')
+            password = request.form.get('password')
+            login_type = request.form.get('login_type', 'user')  # 'user' or 'manufacturer'
+            
+            if not username or not password:
+                flash('Please provide both username and password', 'danger')
                 return redirect(url_for('auth.login'))
             
-            # Create session
-            login_user(user)
-            session['login_as_manufacturer'] = (login_type == 'manufacturer')
-            flash('Login successful!', 'success')
-            return redirect(url_for('main.dashboard'))
-        else:
-            flash('Invalid username or password', 'danger')
+            # Query user from database
+            user = User.query.filter_by(username=username).first()
+            
+            # Verify credentials
+            if user and check_password_hash(user.password, password):
+                # Verify role matches login type
+                if login_type == 'manufacturer' and not user.is_manufacturer():
+                    flash('This account is not registered as a manufacturer. Sign in as a regular user or register as manufacturer.', 'warning')
+                    return redirect(url_for('auth.login'))
+                
+                # Create session
+                login_user(user)
+                session['login_as_manufacturer'] = (login_type == 'manufacturer')
+                flash('Login successful!', 'success')
+                return redirect(url_for('main.dashboard'))
+            else:
+                flash('Invalid username or password', 'danger')
+        
+        except Exception as e:
+            print(f"Login error: {str(e)}")
+            flash('An error occurred during login. Please try again.', 'danger')
     
     return render_template('login.html')
 

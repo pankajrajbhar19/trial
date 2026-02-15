@@ -2,37 +2,18 @@
 # exit on error
 set -o errexit
 
-# Install dependencies
+echo "==> Installing dependencies..."
 pip install -r requirements.txt
 
-# Create instance directory if it doesn't exist
+echo "==> Creating instance directory..."
 mkdir -p instance
 
-# Initialize database
-python3 << END
-from app import app, db
-from models import User, HeritageSite, Artisan, Hotel
-from werkzeug.security import generate_password_hash
+echo "==> Initializing database..."
+python3 init_db.py
 
-with app.app_context():
-    # Create all tables
-    db.create_all()
-    
-    # Check if admin user exists
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        # Create admin user
-        admin = User(
-            username='admin',
-            email='admin@digitalcatalyst.com',
-            password=generate_password_hash('admin123'),
-            role='admin'
-        )
-        db.session.add(admin)
-        db.session.commit()
-        print('Admin user created')
-    else:
-        print('Admin user already exists')
-    
-    print('Database initialized successfully')
-END
+if [ $? -eq 0 ]; then
+    echo "==> Build completed successfully!"
+else
+    echo "==> ERROR: Database initialization failed!"
+    exit 1
+fi
