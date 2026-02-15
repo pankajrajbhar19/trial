@@ -2,8 +2,8 @@ services:
   - type: web
     name: digital-catalyst
     env: python
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --log-level info
+    buildCommand: bash build.sh
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
