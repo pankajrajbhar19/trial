@@ -5,15 +5,5 @@ set -o errexit
 echo "==> Installing dependencies..."
 pip install -r requirements.txt
 
-echo "==> Creating instance directory..."
-mkdir -p instance
-
-echo "==> Initializing database..."
-python3 init_db.py
-
-if [ $? -eq 0 ]; then
-    echo "==> Build completed successfully!"
-else
-    echo "==> ERROR: Database initialization failed!"
-    exit 1
-fi
+echo "==> Build completed successfully!"
+echo "==> Database will be initialized on first app startup"
